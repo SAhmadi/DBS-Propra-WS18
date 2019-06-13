@@ -1,0 +1,1229 @@
+openapi: 3.0.2
+info:
+  title: DBS Programmierpraktikum - WS 2018 (Januar) - 4. Teil - API-Spezifikation
+  description: >-
+    In der folgenden Liste finden Sie die <b>für die Anwendergruppen
+    spezifischen Grundfunktionalitäten</b>. Es müssen <b>alle folgenden
+    allgemeinen Bedingungen</b> eingehalten werden: <ul>
+      <li><b>Bei einer gültigen <code>GET</code>-Anfrage wird entweder ein JSON-Array von JSON-Objekten, falls die Ressource eine einzelne Entität darstellt, oder ein JSON-Objekt, falls die Ressource eine Sammlung von Entitäten darstellt, zurückgegeben</b> und dies mit einem Code <code>200</code> belegt. Wird die <code>GET</code>-Anfrage auf einer nicht vorhandenen Ressource ausgeführt, so wird mit Code <code>404</code> geantwortet. Eine <code>GET</code>-Anfrage auf einer Ressource, die eine Sammlung von Entitäten darstellt, kann durch Übergabe von bestimmten Parametern und dazugehörigen Werten <b>case-insensitive gefiltert</b> werden. Dabei muss jede Entität in der Sammlung allen Parametern gleichzeitig genügen. Die Sammlung wird in der Antwort in ein JSON-Array gekapselt.</li>
+      <li><b>Bei <code>POST</code>-Anfragen werden alle Parameter bis auf diejenigen Parameter der entsprechenden Ressource benötigt, die Standardwerte besitzen.</b> Wird die <code>POST</code>-Anfrage auf einer nicht vorhandenen Ressource ausgeführt, so wird mit Code <code>404</code> geantwortet. Ist die Ressource vorhanden, aber die Anfragen wegen irgendeiner anderen Sache (ungültige Werte, zu wenig Parameter, ...) ungültig, so wird dies mit einem Code <code>400</code> beantwortet, anonsten mit Code <code>201</code> und dem Link zur neuen Ressource im Header belegt.</li>
+      <li><b>Bei <code>PATCH</code>-Anfragen werden nur diejenigen Parameter benötigt, die geändert werden sollen.</b> Wird die <code>PATCH</code>-Anfrage auf einer nicht vorhandenen Ressource ausgeführt, so wird mit Code <code>404</code> geantwortet. Ist die Ressource vorhanden, aber die Anfragen wegen irgendeiner anderen Sache (ungültige Werte, ...) ungültig, so wird dies mit einem Code <code>400</code> beantwortet, anonsten mit Code <code>204</code> belegt.</li>
+      <li><b>Bei einer gültigen <code>DELETE</code>-Anfrage wird der Code <code>204</code> zurückgegeben.</b> Ist die Ressource nicht vorhanden, wird dies mit Code <code>404</code> belegt.</li>
+      <li><b>Bereiche mit einem Schlosssymbol werden durch eine HTTP-Basisauthentifizierung abgesichert.</b> Wird einer dieser Bereiche ohne oder mit falschen Anmeldedaten aufgerufen, so wird dies mit einem <code>401</code> und dem Header <code>WWW-Authenticate</code> belegt. Sind die Anmeldedaten richtig, aber der Anwender ist nicht authorisiert, so wird dies mit einem Code <code>403</code> belegt.</li>
+      <li><b>In Antworten mit Code <code>4xx</code> wird ein JSON-Objekt, das mindestens den Schlüssel <code>"message"</code> mit dem Wert <code>&lt;Fehlermeldung&gt;</code> enthält, zurückgegeben</b>, wobei <code>&lt;Fehlermeldung&gt; }</code> eine für den Umstand entsprechende Fehlermeldung ist. Bei einer auftretenden Exception reicht dafür die Nachricht dieser.</li>
+      <li><b>Antworten auf gültige <code>POST</code>- und <code>PATCH</code>-Anfragen beinhalten nichts.</b></li>
+      <li><b>Anfragen sind vom Typ <code>multipart/form-data</code>, Antworten sind vom Typ <code>application/json;charset=UTF-8</code>.</b></li>
+      <li><b>Datums- und Zeitangaben werden im entsprechenden Standard-SQL-Format übertragen</b> (sowohl in der Anfrage, als auch in der Antwort).</li>
+      <li><b>Passwörter werden der Einfachheit halber im Klartext übergeben.</b></li>
+      <li><b>Die erwähnten IDs sind RowIDs!!!</b></li>
+    </ul>
+  version: 1.0.0
+servers:
+  - url: 'http://localhost:8080'
+paths:
+  /benutzer:
+    get:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Gibt Benutzer zurück.
+      description: >-
+        Alle Benutzer werden zurückgegeben. Falls Query-Parameter mit Werten
+        angegeben wurden, werden diese Benutzer noch entsprechend gefiltert.
+        **Nur für Mitarbeiter.**
+      parameters:
+        - name: email
+          in: query
+          description: >-
+            Nur Benutzer, deren **E-Mail** `email` enthält, werden
+            zurückgegeben.
+          schema:
+            type: string
+        - name: alter
+          in: query
+          description: >-
+            Nur Benutzer, deren **Alter** größer gleich `alter` ist, werden
+            zurückgegeben.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - type: object
+                      properties:
+                        benutzerid:
+                          type: integer
+                          description: '**RowID des Benutzers**.'
+                      required:
+                        - benutzerid
+                    - $ref: '#/components/schemas/benutzer'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+    post:
+      tags:
+        - Anwender
+      summary: Fügt einen Benutzer hinzu.
+      description: Ein Benutzer wird mit den entsprechenden Werten hinzugefügt.
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/benutzer'
+      responses:
+        '201':
+          $ref: '#/components/responses/201'
+        '400':
+          $ref: '#/components/responses/400'
+  '/benutzer/{benutzerid}':
+    get:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Benutzer authorisierter Anwender
+      summary: Gibt einen Benutzer zurück.
+      description: >-
+        Der **Benutzer mit RowID** `benutzerid` wird zurückgegeben. **Nur für
+        Mitarbeiter und den Benutzer mit RowID `benutzerid`.**
+      parameters:
+        - name: benutzerid
+          in: path
+          description: '**RowID des Benutzers**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      benutzerid:
+                        type: integer
+                        description: '**RowID des Benutzers**.'
+                    required:
+                      - benutzerid
+                  - $ref: '#/components/schemas/benutzer'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+    patch:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Benutzer authorisierter Anwender
+      summary: Ändert einen Benutzer.
+      description: >-
+        Der **Benutzer mit RowID** `benutzerid` wird mit den entsprechenden
+        Werten bearbeitet. **Nur für Mitarbeiter und den Benutzer mit RowID
+        `benutzerid`. Mitarbeiter dürfen nicht die E-Mail-Adresse und das
+        Passwort von anderen Benutzern ändern.**
+      parameters:
+        - name: benutzerid
+          in: path
+          description: '**RowID des Benutzers**.'
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/benutzer'
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+    delete:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Benutzer authorisierter Anwender
+      summary: Löscht einen Benutzer.
+      description: >-
+        Der **Benutzer mit RowID** `benutzerid` und alle Einträge, an denen es
+        beteiligt ist, werden gelöscht. **Nur für Mitarbeiter und Benutzer mit
+        RowID `benutzerid`. Mitarbeiter dürfen sich nicht selbst löschen.**
+      parameters:
+        - name: benutzerid
+          in: path
+          description: '**RowID des Benutzers**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  /filme:
+    get:
+      tags:
+        - Anwender
+      summary: Gibt Filme zurück.
+      description: >-
+        Alle Filme werden zurückgegeben. Falls Query-Parameter mit Werten
+        angegeben wurden, werden diese Filme noch entsprechend gefiltert.
+      parameters:
+        - name: titel
+          in: query
+          description: 'Nur Filme, deren **Titel** `titel` enthalten, werden zurückgegeben.'
+          schema:
+            type: string
+        - name: genre
+          in: query
+          description: >-
+            Nur Filme, die `genre` als **Genre** besitzen, werden zurückgegeben.
+            *Kann mehrmals übergeben werden.*
+          schema:
+            type: string
+        - name: jahr
+          in: query
+          description: >-
+            Nur Filme, die `jahr` als **Veröffentlichungsjahr** besitzen, werden
+            zurückgegeben.
+          schema:
+            type: integer
+        - name: schauspieler
+          in: query
+          description: >-
+            Nur Filme mit **Schauspielern**, deren **Vorname**, **Nachname**
+            oder **Künstlername** `schauspieler` enthält, werden zurückgegeben.
+            *Kann mehrmals übergeben werden.*
+          schema:
+            type: string
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - type: object
+                      properties:
+                        filmid:
+                          type: integer
+                          description: '**RowID des Films**.'
+                      required:
+                        - filmid
+                    - $ref: '#/components/schemas/film'
+    post:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Fügt einen Film hinzu.
+      description: >-
+        Ein Film wird mit den entsprechenden Werten hinzugefügt. **Nur für
+        Mitarbeiter.**
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/film'
+      responses:
+        '201':
+          $ref: '#/components/responses/201'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+  '/filme/{filmid}':
+    get:
+      tags:
+        - Anwender
+      summary: Gibt einen Film zurück.
+      description: Der **Film mit RowID** `filmid` wird zurückgegeben.
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      filmid:
+                        type: integer
+                        description: '**RowID des Films**.'
+                    required:
+                      - filmid
+                  - $ref: '#/components/schemas/film'
+        '404':
+          $ref: '#/components/responses/404'
+    patch:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Ändert einen Film.
+      description: >-
+        Der **Film mit RowID** `filmid` wird mit den entsprechenden Werten
+        bearbeitet. **Nur für Mitarbeiter.**
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/film'
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+    delete:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Löscht einen Film.
+      description: >-
+        Der **Film mit RowID** `filmid` und alle Einträge, an denen er beteiligt
+        ist, werden gelöscht. **Nur für Mitarbeiter.**
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  '/filme/{filmid}/genres':
+    get:
+      tags:
+        - Anwender
+      summary: Gibt alle Genres zu einem Film zurück.
+      description: Alle Genres zum **Film mit RowID** `filmid` werden zurückgegeben.
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - type: object
+                      properties:
+                        genreid:
+                          type: integer
+                          description: '**RowID des Genres** zum Film.'
+                      required:
+                        - genreid
+                    - $ref: '#/components/schemas/genre'
+        '404':
+          $ref: '#/components/responses/404'
+    post:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Fügt ein Genre zu einem Film hinzu.
+      description: >-
+        Ein Genre wird zum **Film mit RowID** `filmid` hinzugefügt. **Nur für
+        Miratbeiter.**
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                genreid:
+                  type: integer
+                  description: '**RowID des Genres**.'
+      responses:
+        '201':
+          $ref: '#/components/responses/201'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  '/filme/{filmid}/genres/{genreid}':
+    delete:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Löscht ein Genre zu einem Film.
+      description: >-
+        Das **Genre mit RowID** `genreid` wird zum **Film mit RowID** `filmid`
+        gelöscht. **Nur für Mitarbeiter.**
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+        - name: genreid
+          in: path
+          description: '**RowID des Genres**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  '/filme/{filmid}/schauspieler':
+    get:
+      tags:
+        - Anwender
+      summary: Gibt alle Schauspieler zu einem Film zurück.
+      description: Alle Schauspieler zum **Film mit RowID** `filmid` werden zurückgegeben.
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - type: object
+                      properties:
+                        schauspielerid:
+                          type: integer
+                          description: '**RowID des Schauspielers**.'
+                      required:
+                        - schauspielerid
+                    - $ref: '#/components/schemas/schauspieler'
+        '404':
+          $ref: '#/components/responses/404'
+    post:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Fügt einen Schauspieler zu einem Film hinzu.
+      description: >-
+        Ein Schauspieler wird zum **Film mit RowID** `filmid` hinzugefügt. **Nur
+        für Mitarbeiter.**
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                schauspielerid:
+                  type: integer
+                  description: '**RowID des Schauspielers**.'
+      responses:
+        '201':
+          $ref: '#/components/responses/201'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  '/filme/{filmid}/schauspieler/{schauspielerid}':
+    delete:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Löscht einen Schauspieler zu einem Film.
+      description: >-
+        Der **Schauspieler mit RowID** `schauspielerid` wird zum **Film mit
+        RowID** `filmid` gelöscht. **Nur für Mitarbeiter.**
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+        - name: schauspielerid
+          in: path
+          description: '**RowID des Schauspielers**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  '/filme/{filmid}/bewertungen':
+    get:
+      tags:
+        - Anwender
+      summary: >-
+        Gibt die Anzahl der Bewertungen und die Durchschnittsbewertung eines
+        Films zurück.
+      description: >-
+        Die Anzahl der Bewertungen und die Durchschnittsbewertung zum Film mit
+        der **RowID** `id` werden zurückgegeben.
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                type: object
+                properties:
+                  anzahl:
+                    type: integer
+                    description: '**Anzahl der Bewertungen** zum Film.'
+                  durchschnitt:
+                    type: number
+                    format: double
+                    description: '**Durchschnittsbewertung** zum Film.'
+        '404':
+          $ref: '#/components/responses/404'
+    post:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Benutzer authorisierter Anwender
+      summary: Fügt eine Bewertung zu einem Film hinzu.
+      description: >-
+        Eine Bewertung wird zum **Film mit RowID** `filmid` mit den
+        entsprechenden Werten hinzugefügt. **Nur für Benutzer.**
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/bewertung'
+      responses:
+        '201':
+          $ref: '#/components/responses/201'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  '/filme/{filmid}/vorstellungen':
+    get:
+      tags:
+        - Anwender
+      summary: Gibt Vorstellungen eines Films zurück.
+      description: >-
+        Alle Vorstellungen des **Films mit RowID** `id` werden zurückgegeben.
+        Falls Query-Parameter mit Werten angegeben wurden, werden diese
+        Vorstellungen noch entsprechend gefiltert.
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+        - name: wochentag
+          in: query
+          description: >-
+            Nur Vorstellungen, die am **Wochentag** `wochentag` gezeigt werden,
+            werden zurückgegeben. Mögliche Werte sind 0 (Sonntag) bis 6
+            (Samstag).
+          schema:
+            type: integer
+        - name: sprache
+          in: query
+          description: Nur Vorstellungen in der **Sprache** `sprache` werden zurückgegeben.
+          schema:
+            type: string
+        - name: dreid
+          in: query
+          description: >-
+            Falls `dreid == true` ist, werden nur **3D**-Vorstellungen
+            zurückgegeben.
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - type: object
+                      properties:
+                        vorstellungid:
+                          type: integer
+                          description: '**RowID der Vorstellung**.'
+                      required:
+                        - vorstellungid
+                    - $ref: '#/components/schemas/vorstellung'
+                    - type: object
+                      properties:
+                        filmid:
+                          type: integer
+                          description: >-
+                            **RowID des Films**, der in der Vorstellung gezeigt
+                            wird.
+                        saalid:
+                          type: integer
+                          description: >-
+                            **RowID des Saals**, in dem die Vorstellung gezeigt
+                            wird.
+                      required:
+                        - filmid
+                        - saalid
+    post:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Fügt eine Vorstellung zu einem Film hinzu.
+      description: >-
+        Eine Vorstellung zum **Film mit RowID** `id` wird mit den entsprechenden
+        Werten hinzugefügt. **Nur für Mitarbeiter.**
+      parameters:
+        - name: filmid
+          in: path
+          description: '**RowID des Films**.'
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/vorstellung'
+                - type: object
+                  properties:
+                    saalid:
+                      type: integer
+                      description: >-
+                        **RowID des Saals**, in dem die Vorstellung zum Film mit
+                        der **RowID** `filmid` ausgestrahlt wird.
+                  required:
+                    - saalid
+      responses:
+        '201':
+          $ref: '#/components/responses/201'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  '/vorstellungen/{vorstellungid}':
+    get:
+      tags:
+        - Anwender
+      summary: Gibt eine Vorstellung zurück.
+      description: Der **Vorstellung mit RowID** `vorstellungid` wird zurückgegeben.
+      parameters:
+        - name: vorstellungid
+          in: path
+          description: '**RowID der Vorstellung**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      vorstellungid:
+                        type: integer
+                        description: '**RowID der Vorstellung**.'
+                    required:
+                      - vorstellungid
+                  - $ref: '#/components/schemas/vorstellung'
+                  - type: object
+                    properties:
+                      filmid:
+                        type: integer
+                        description: |-
+                          **RowID des Films**, der in der Vorstellung gezeigt
+                            wird.
+                      saalid:
+                        type: integer
+                        description: >-
+                          **RowID des Saals**, in dem die Vorstellung gezeigt
+                          wird.
+                    required:
+                      - filmid
+                      - saalid
+        '404':
+          $ref: '#/components/responses/404'
+    patch:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Ändert eine Vorstellung.
+      description: >-
+        Die **Vorstellung mit RowID** `vorstellungid` wird mit den
+        entsprechenden Werten bearbeitet. **Nur für Mitarbeiter.**
+      parameters:
+        - name: vorstellungid
+          in: path
+          description: '**RowID der Vorstellung**.'
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/vorstellung'
+                - type: object
+                  properties:
+                    saalid:
+                      type: integer
+                      description: >-
+                        **RowID des Saals**, in dem die Vorstellung ausgestrahlt
+                        wird.
+                  required:
+                    - saalid
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+    delete:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Löscht eine Vorstellung.
+      description: >-
+        Die **Vorstellung mit RowID** `vorstellungid` und alle Einträge, an
+        denen sie beteiligt ist, werden gelöscht. **Nur für Mitarbeiter.**
+      parameters:
+        - name: vorstellungid
+          in: path
+          description: '**RowID der Vorstellung**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  '/vorstellungen/{vorstellungid}/tickets':
+    get:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Mitarbeiter authorisierter Anwender
+      summary: Gibt Tickets zu einer Vorstellung zurück.
+      description: >-
+        Alle Tickets zur **Vorstellung mit RowID** `vorstellungid` werden
+        zurückgegeben. Falls Query-Parameter mit Werten angegeben wurden, werden
+        diese Filme noch entsprechend gefiltert. **Nur für Mitarbeiter.**
+      parameters:
+        - name: vorstellungid
+          in: path
+          description: '**RowID der Vorstellung**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - type: object
+                      properties:
+                        ticketid:
+                          type: integer
+                          description: '**RowID des Tickets**.'
+                      required:
+                        - ticketid
+                    - $ref: '#/components/schemas/ticket'
+                    - type: object
+                      properties:
+                        gesamtpreis:
+                          type: number
+                          format: double
+                          description: '**Gesamtpreis** des Tickets.'
+                        vorstellungid:
+                          type: integer
+                          description: '**RowID der Vorstellung**, für die das Ticket ist.'
+                        benutzerid:
+                          type: integer
+                          description: '**RowID des Benutzers**, für den das Ticket ist.'
+                      required:
+                        - gesamtpreis
+                        - vorstellundid
+                        - benutzerid
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+    post:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Benutzer authorisierter Anwender
+      summary: Fügt ein Ticket zu einer Vorstellung hinzu.
+      description: >-
+        Ein Ticket wird zur **Vorstellung mit RowID** `vorstellungid` mit den
+        entsprechenden Werten hinzugefügt. **Nur für Benutzer.**
+      parameters:
+        - name: vorstellungid
+          in: path
+          description: '**RowID der Vorstellung**.'
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/ticket'
+                - type: object
+                  properties:
+                    benutzerid:
+                      type: integer
+                      description: '**RowID des Benutzers**, für den das Ticket ist.'
+                  required:
+                    - benutzerid
+      responses:
+        '201':
+          $ref: '#/components/responses/201'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  '/tickets/{ticketid}':
+    get:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Benutzer authorisierter Anwender
+      summary: Gibt ein Ticket zurück.
+      description: >-
+        Das **Ticket mit RowID** `ticketid` wird zurückgegeben. **Nur für
+        Mitarbeiter und den Benutzer, der das Ticket mit RowID `ticketid`
+        besitzt.**
+      parameters:
+        - name: ticketid
+          in: path
+          description: '**RowID des Tickets**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '200':
+          description: '**OK**.'
+          content:
+            application/json;charset=UTF-8:
+              schema:
+                allOf:
+                  - type: object
+                    properties:
+                      ticketid:
+                        type: integer
+                        description: '**RowID des Tickets**.'
+                    required:
+                      - ticketid
+                  - $ref: '#/components/schemas/ticket'
+                  - type: object
+                    properties:
+                      gesamtpreis:
+                        type: number
+                        format: double
+                        description: '**Gesamtpreis** des Tickets.'
+                      vorstellungid:
+                        type: integer
+                        description: '**RowID der Vorstellung**, für die das Ticket ist.'
+                      benutzerid:
+                        type: integer
+                        description: '**RowID des Benutzers**, für den das Ticket ist.'
+                    required:
+                      - gesamtpreis
+                      - vorstellungid
+                      - benutzerid
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+    delete:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Benutzer authorisierter Anwender
+      summary: Löscht ein Ticket.
+      description: >-
+        Das **Ticket mit RowID** `ticketid` und alle Einträge, an denen es
+        beteiligt ist, werden gelöscht. **Nur für Mitarbeiter und den Benutzer,
+        der das Ticket mit RowID `ticketid` besitzt.**
+      parameters:
+        - name: ticketid
+          in: path
+          description: '**RowID des Tickets**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+  '/bewertungen/{bewertungid}':
+    patch:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Benutzer authorisierter Anwender
+      summary: Ändert eine Bewertung.
+      description: >-
+        Die **Bewertung mit RowID** `bewertungid` wird mit den entsprechenden
+        Werten bearbeitet. **Nur für den Benutzer, der die Bewertung mit RowID
+        `bewertungid` besitzt.**
+      parameters:
+        - name: bewertungid
+          in: path
+          description: '**RowID der Bewertung**.'
+          schema:
+            type: integer
+          required: true
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/bewertung'
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '400':
+          $ref: '#/components/responses/400'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+    delete:
+      security:
+        - basic authentication: []
+      tags:
+        - Authentifizierter und als Benutzer authorisierter Anwender
+      summary: Löscht eine Bewertung
+      description: >-
+        Die **Bewertung mit RowID** `bewertungid` und alle Einträge, an denen
+        sie beteiligt ist, werden gelöscht. **Nur für Mitarbeiter und den
+        Benutzer, der die Bewertung mit RowID `bewertungid` besitzt.**
+      parameters:
+        - name: bewertungid
+          in: path
+          description: '**RowID der Bewertung**.'
+          schema:
+            type: integer
+          required: true
+      responses:
+        '204':
+          $ref: '#/components/responses/204'
+        '401':
+          $ref: '#/components/responses/401'
+        '403':
+          $ref: '#/components/responses/403'
+        '404':
+          $ref: '#/components/responses/404'
+components:
+  securitySchemes:
+    basic authentication:
+      type: http
+      scheme: basic
+  responses:
+    '201':
+      description: '**Created**.'
+      headers:
+        Location:
+          description: Die URL der neuen Ressource.
+          schema:
+            type: string
+    '204':
+      description: '**No Content**.'
+    '400':
+      description: '**Bad Request**.'
+    '401':
+      description: '**Unauthorized**.'
+      headers:
+        WWW-Authenticate:
+          schema:
+            type: string
+    '403':
+      description: '**Forbidden**.'
+    '404':
+      description: '**Not Found**.'
+  schemas:
+    benutzer:
+      type: object
+      properties:
+        vorname:
+          type: string
+          description: '**Vorname** des Benutzers.'
+        nachname:
+          type: string
+          description: '**Nachname** des Benutzers.'
+        geburtsdatum:
+          type: string
+          format: date-time
+          description: '**Geburtsdatum** des Benutzers.'
+        email:
+          type: string
+          description: '**E-Mail** des Benutzers.'
+        passwort:
+          type: string
+          description: '**Passwort** des Benutzers.'
+      required:
+        - vorname
+        - nachname
+        - geburtsdatum
+        - email
+        - passwort
+    schauspieler:
+      type: object
+      properties:
+        vorname:
+          type: string
+          description: '**Vorname** des Schauspielers.'
+        nachname:
+          type: string
+          description: '**Nachname** des Schauspielers.'
+        geburtsdatum:
+          type: string
+          format: date-time
+          description: '**Geburtsdatum** des Schauspielers.'
+        kuenstlername:
+          type: string
+          description: '**Künstlername** des Schauspielers.'
+      required:
+        - vorname
+        - nachname
+        - geburtsdatum
+        - kuenstlername
+    genre:
+      type: object
+      properties:
+        bezeichnung:
+          type: string
+          description: '**Bezeichnung** des Genres, das Filme beschreibt.'
+      required:
+        - bezeichnung
+    film:
+      type: object
+      properties:
+        titel:
+          type: string
+          description: '**Titel** des Films.'
+        text:
+          type: string
+          description: '**Text** des Films.'
+        laenge:
+          type: integer
+          description: '**Spiellänge** des Films in Minuten.'
+        datum:
+          type: string
+          format: date
+          description: '**Veröffentlichungsdatum** des Films.'
+        fsk:
+          type: integer
+          description: '**Altersbeschränkung** für den Film.'
+        cover:
+          type: string
+          format: binary
+          description: '**Cover** zum Film.'
+        trailer:
+          type: string
+          description: '**Trailer** zum Film als YouTube-Link.'
+      required:
+        - titel
+        - text
+        - laenge
+        - datum
+        - fsk
+        - cover
+        - trailer
+    vorstellung:
+      type: object
+      properties:
+        dreid:
+          type: boolean
+          description: 'Falls `dreid == true` ist, ist die Vorstellung in **3D**.'
+        sprache:
+          type: string
+          description: '**Sprache**, in der die Vorstellung ausgestrahlt wird.'
+        zeitstempel:
+          type: string
+          format: date-time
+          description: '**Zeitstempel**, an dem die Vorstellung läuft.'
+      required:
+        - dreid
+        - sprache
+        - zeitstempel
+    ticket:
+      type: object
+      properties:
+        kind:
+          type: boolean
+          description: 'Gibt an, ob es ein **Kinderticket** ist oder nicht.'
+        reihe:
+          type: string
+          description: '**Reihe des Platzes** im Saal für die Vorstellung.'
+        nummer:
+          type: integer
+          description: '**Nummer des Platzes** im Saal für die Vorstellung.'
+      required:
+        - kind
+        - reihe
+        - nummer
+    bewertung:
+      type: object
+      properties:
+        sterne:
+          type: integer
+          description: Anzahl der **Sterne**.
+      required:
+        - sterne
