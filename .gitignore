@@ -146,4 +146,5 @@ gradle-app.setting
 # gradle/wrapper/gradle-wrapper.properties
 
 data/**
+!data/database.db
 !data/.gitkeep
