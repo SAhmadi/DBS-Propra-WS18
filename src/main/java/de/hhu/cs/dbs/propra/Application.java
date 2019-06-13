@@ -7,7 +7,6 @@ import org.glassfish.jersey.jdkhttp.JdkHttpServerFactory;
 import javax.ws.rs.core.UriBuilder;
 import java.net.URI;
 
-// WAMT
 
 public class Application {
     public final static int PORT = 8080;

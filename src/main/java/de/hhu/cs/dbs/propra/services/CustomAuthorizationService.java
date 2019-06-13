@@ -16,7 +16,9 @@ public class CustomAuthorizationService implements AuthorizationService {
 
     @Override
     public boolean authorise(String name, List<Role> rolesAllowed) {
-        return securityContext.getUserPrincipal().getName().equalsIgnoreCase(name) && rolesAllowed.stream().anyMatch(role -> securityContext.isUserInRole(role.name()));
+        return securityContext.getUserPrincipal().getName().equalsIgnoreCase(name) &&
+                rolesAllowed.stream()
+                        .anyMatch(role -> securityContext.isUserInRole(role.name()));
     }
 
     public SecurityContext getSecurityContext() {
